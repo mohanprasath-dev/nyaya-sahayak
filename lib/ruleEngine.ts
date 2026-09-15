@@ -264,7 +264,7 @@ export function mapContextToGuidance(
       applicableSections.push({
         code: 'BNS Section 85 & 86',
         historicalEquivalent: 'IPC Section 498A',
-        description: 'Cruelty by husband or husband’s relatives, entailing non-bailable criminal prosecution.'
+        description: 'Cruelty by husband or husband\'s relatives, entailing non-bailable criminal prosecution.'
       });
 
       recipientTitle = 'The Protection Officer / Learned Judicial Magistrate First Class';
@@ -334,7 +334,7 @@ export function mapContextToGuidance(
           {
             code: 'BNS Section 78',
             historicalEquivalent: 'IPC Section 354D',
-            description: 'Criminal stalking: Following or monitoring a woman’s electronic communication, social media, or email despite disinterest.'
+            description: 'Criminal stalking: Following or monitoring a woman\'s electronic communication, social media, or email despite disinterest.'
           },
           {
             code: 'BNS Section 79',

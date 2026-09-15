@@ -388,7 +388,7 @@ export const LEGAL_REGISTRY: Record<LegalCategory, CategoryLegalProfile> = {
       'If in immediate physical danger, head toward a well-lit, crowded area or commercial establishment and call 112.',
       'Go to the nearest police station to lodge an FIR. You have the right to file a "Zero FIR" at any station regardless of location.',
       'By law under BNSS Section 173(1), your information must be recorded by a woman police officer or woman officer.',
-      'Obtain a free copy of the registered FIR immediately after signing — this is your statutory right.',
+      'Obtain a free copy of the registered FIR immediately after signing - this is your statutory right.',
       'If police refuse to register the FIR, send the substance of information in writing by registered post to the Superintendent of Police (SP).'
     ],
     evidenceChecklist: [
