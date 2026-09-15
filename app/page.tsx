@@ -319,7 +319,7 @@ export default function HomePage() {
   }, [handleSelectDocPreset, handleSelectComparePreset, handleSelectQaPreset, handleCategorySelect]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-teal-700 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-teal-700 selection:text-white">
       {/* 1. Accessible Skip Link */}
       <a
         href="#main-content"

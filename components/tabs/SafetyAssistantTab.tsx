@@ -488,7 +488,7 @@ export const SafetyAssistantTab: React.FC<SafetyAssistantTabProps> = ({
               </button>
             </div>
 
-            <div className="bg-slate-900 text-slate-100 p-5 rounded-lg overflow-x-auto font-mono text-xs md:text-sm leading-relaxed whitespace-pre-wrap selection:bg-teal-700">
+            <div className="bg-slate-50 text-slate-800 p-5 rounded-lg border border-slate-300 overflow-x-auto font-mono text-xs md:text-sm leading-relaxed whitespace-pre-wrap selection:bg-teal-100 selection:text-teal-900 shadow-2xs">
               {result.guidance.draftLetter}
             </div>
           </div>
