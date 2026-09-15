@@ -90,7 +90,7 @@ export interface LegalGuidanceResult {
 export function mapContextToGuidance(
   category: string,
   answers: IntakeAnswers = {},
-  freeText?: string
+  _freeText?: string
 ): LegalGuidanceResult {
   const verifiedAt = '2026-09-15';
 

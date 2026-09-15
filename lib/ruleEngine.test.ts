@@ -174,7 +174,7 @@ describe('lib/ruleEngine - Deterministic Legal Rule Engine', () => {
     });
 
     it('gracefully handles unknown category by falling back to public safety', () => {
-      const result = mapContextToGuidance('non_existent_category' as any);
+      const result = mapContextToGuidance('non_existent_category');
 
       expect(result.category).toBe('public_safety_other');
       expect(result.statuteSummary).toContain('Bharatiya Nyaya Sanhita');

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { NextRequest } from 'next/server';
 import { POST } from './route';
 
 describe('/api/assist API Route Integration Test', () => {
@@ -13,35 +14,37 @@ describe('/api/assist API Route Integration Test', () => {
   });
 
   it('successfully processes valid intake with mocked Gemini response', async () => {
-    // Mock Gemini API call
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        candidates: [
-          {
-            content: {
-              parts: [
-                {
-                  text: JSON.stringify({
-                    empatheticSummary: 'We understand this workplace situation is difficult and you have clear legal protections under POSH Act.',
-                    plainLanguageSteps: [
-                      'Preserve all communications and emails securely.',
-                      'Submit formal written complaint to the Internal Committee within 3 months.'
-                    ],
-                    draftLetter: 'To,\nThe Presiding Officer, Internal Committee\n\nRespected Committee,\nFormal complaint under POSH Act 2013...'
-                  })
-                }
-              ]
-            }
+    const mockGeminiPayload = {
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                text: JSON.stringify({
+                  empatheticSummary: 'We understand this workplace situation is difficult and you have clear legal protections under POSH Act.',
+                  plainLanguageSteps: [
+                    'Preserve all communications and emails securely.',
+                    'Submit formal written complaint to the Internal Committee within 3 months.'
+                  ],
+                  draftLetter: 'To,\nThe Presiding Officer, Internal Committee\n\nRespected Committee,\nFormal complaint under POSH Act 2013...'
+                })
+              }
+            ]
           }
-        ]
-      })
-    } as any);
+        }
+      ]
+    };
 
-    // Provide a dummy API key for testing
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(mockGeminiPayload), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    );
+
     process.env.GEMINI_API_KEY = 'test-dummy-api-key';
 
-    const req = new Request('http://localhost:3000/api/assist', {
+    const req = new NextRequest('http://localhost:3000/api/assist', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -59,7 +62,7 @@ describe('/api/assist API Route Integration Test', () => {
       })
     });
 
-    const res = await POST(req as any);
+    const res = await POST(req);
     expect(res.status).toBe(200);
 
     const data = await res.json();
@@ -73,7 +76,7 @@ describe('/api/assist API Route Integration Test', () => {
   });
 
   it('rejects invalid or missing category with status 400', async () => {
-    const req = new Request('http://localhost:3000/api/assist', {
+    const req = new NextRequest('http://localhost:3000/api/assist', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -85,7 +88,7 @@ describe('/api/assist API Route Integration Test', () => {
       })
     });
 
-    const res = await POST(req as any);
+    const res = await POST(req);
     expect(res.status).toBe(400);
 
     const data = await res.json();
@@ -95,9 +98,8 @@ describe('/api/assist API Route Integration Test', () => {
   it('enforces rate limiting when exceeding request threshold', async () => {
     const testIp = '10.0.0.99';
 
-    // Send 5 successful requests
     for (let i = 0; i < 5; i++) {
-      const req = new Request('http://localhost:3000/api/assist', {
+      const req = new NextRequest('http://localhost:3000/api/assist', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -108,12 +110,11 @@ describe('/api/assist API Route Integration Test', () => {
           answers: {}
         })
       });
-      const res = await POST(req as any);
+      const res = await POST(req);
       expect(res.status).toBe(200);
     }
 
-    // 6th request from same IP must be rate limited (429)
-    const blockedReq = new Request('http://localhost:3000/api/assist', {
+    const blockedReq = new NextRequest('http://localhost:3000/api/assist', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -125,7 +126,7 @@ describe('/api/assist API Route Integration Test', () => {
       })
     });
 
-    const blockedRes = await POST(blockedReq as any);
+    const blockedRes = await POST(blockedReq);
     expect(blockedRes.status).toBe(429);
 
     const data = await blockedRes.json();
@@ -133,7 +134,7 @@ describe('/api/assist API Route Integration Test', () => {
   });
 
   it('rejects oversized payload exceeding 15KB with status 413', async () => {
-    const req = new Request('http://localhost:3000/api/assist', {
+    const req = new NextRequest('http://localhost:3000/api/assist', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -146,7 +147,7 @@ describe('/api/assist API Route Integration Test', () => {
       })
     });
 
-    const res = await POST(req as any);
+    const res = await POST(req);
     expect(res.status).toBe(413);
 
     const data = await res.json();
@@ -154,7 +155,7 @@ describe('/api/assist API Route Integration Test', () => {
   });
 
   it('handles malformed non-JSON body gracefully with status 400', async () => {
-    const req = new Request('http://localhost:3000/api/assist', {
+    const req = new NextRequest('http://localhost:3000/api/assist', {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain',
@@ -163,7 +164,7 @@ describe('/api/assist API Route Integration Test', () => {
       body: 'this is not a valid JSON string'
     });
 
-    const res = await POST(req as any);
+    const res = await POST(req);
     expect(res.status).toBe(400);
 
     const data = await res.json();
