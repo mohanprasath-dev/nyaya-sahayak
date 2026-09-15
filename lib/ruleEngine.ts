@@ -116,8 +116,12 @@ export function mapContextToGuidance(
   const isEmergency = answers.immediateDanger === 'yes';
   if (isEmergency) {
     riskLevel = 'high';
-    // Ensure 112 is primary
-    if (!helplines.some(h => h.number === '112')) {
+    // Ensure 112 is moved to index 0
+    const index112 = helplines.findIndex(h => h.number === '112');
+    if (index112 > 0) {
+      const [h112] = helplines.splice(index112, 1);
+      helplines.unshift(h112);
+    } else if (index112 === -1) {
       helplines.unshift(OFFICIAL_HELPLINES.emergency_112);
     }
     immediateActionSteps.unshift(
