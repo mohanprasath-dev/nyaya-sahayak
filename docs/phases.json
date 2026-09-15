@@ -1,0 +1,51 @@
+[
+  {
+    "id": "LA-00",
+    "title": "Scaffold + repo hygiene",
+    "instruction": "Create Next.js 14 app (App Router, TypeScript, Tailwind, no src/ dir needed, eslint on). Init git, single branch 'main'. Add .gitignore covering node_modules, .next, .env*, .vercel. Add .env.example with GEMINI_API_KEY= placeholder only. Do not commit any real key. Push initial commit to the public GitHub repo the user provides.",
+    "acceptance": "npm run dev serves default page; git status clean; .env.local is gitignored (verify with git check-ignore); repo has exactly one branch.",
+    "note": "Reference skill: gstack-plan-eng-review before locking folder structure."
+  },
+  {
+    "id": "LA-01",
+    "title": "Rule engine + legal data (deterministic core)",
+    "instruction": "Create lib/lawData.ts with typed categories (workplace_harassment, domestic_violence, cyber_harassment, public_safety_other), each mapping to {law, section, authority, helpline, steps[]}. Before writing BNS/IPC section numbers, web-search to confirm current correct citations - do not use memory. Create lib/ruleEngine.ts: pure function mapContextToGuidance(category, answers) -> structured result object. No LLM call here. Add a 'sources last verified: <date>' comment at top of lawData.ts.",
+    "acceptance": "Screenshot/console-log ruleEngine output for all 4 categories, each returns correct law+section+helpline with no placeholder text left in.",
+    "note": "This phase carries the most weight for 'Problem Statement Alignment' and 'Logical decision making' - do not let Gemini touch the legal facts, only the wording later."
+  },
+  {
+    "id": "LA-02",
+    "title": "Intake UI + Gemini API route",
+    "instruction": "Build the intake flow (category select -> 2-4 context questions -> optional free-text, capped at 500 chars) using accessible form controls. Create app/api/assist/route.ts (server-side): receives ruleEngine output + free-text, calls Gemini with a system prompt that instructs it to ONLY rephrase steps in plain language and draft a complaint letter template, and explicitly forbids inventing legal citations. Read GEMINI_API_KEY from process.env only, never expose client-side. Add input length validation and a simple in-memory per-IP rate limit (e.g. 5 req/min).",
+    "acceptance": "Submitting intake returns a result screen with law/section (from rule engine, unchanged) + plain-language guidance + draft letter (from Gemini). Screenshot the network tab confirming API key never appears in client bundle or response.",
+    "note": "Reference skill: gstack-cso before finalizing the API route."
+  },
+  {
+    "id": "LA-03",
+    "title": "Accessibility pass",
+    "instruction": "Audit intake + result screens: semantic landmarks, label/for on every input, ARIA-live region for result updates, visible focus rings, color contrast >= 4.5:1, full keyboard-only walkthrough (tab order, enter/space activation), skip-to-content link. Run axe-core (or Lighthouse a11y) and fix all flagged issues.",
+    "acceptance": "Lighthouse accessibility score >= 95, zero critical axe-core violations, screenshot of full keyboard-only completion of the flow.",
+    "note": "Reference skill: awwwards-ui-design can be used for visual polish but must not compromise contrast or focus states."
+  },
+  {
+    "id": "LA-04",
+    "title": "Testing",
+    "instruction": "Add Jest + React Testing Library (or Vitest). Unit test ruleEngine.ts for all 4 category branches plus edge cases (missing answers, unknown category). Add one integration test for /api/assist with Gemini mocked (no real API calls in CI). Add npm script 'test'.",
+    "acceptance": "npm test passes locally with >=80% coverage on lib/ruleEngine.ts specifically (not overall app).",
+    "note": "Reference skill: gstack-qa. This phase directly scores the 'Testing' evaluation criterion - do not skip."
+  },
+  {
+    "id": "LA-05",
+    "title": "Security hardening",
+    "instruction": "Re-check: no secrets in git history (git log -p | grep for key patterns), sanitize/escape free-text before sending to Gemini, cap request size, add basic error handling that never leaks stack traces to the client, add a 'no data is stored' notice, verify .env.local was never committed (check git history too, not just current .gitignore).",
+    "acceptance": "grep across git history shows no API key ever committed; malformed/oversized input returns a clean 4xx without crashing.",
+    "note": "If a key was ever committed accidentally in LA-00/02, rotate it and scrub history before proceeding - do not just gitignore going forward."
+  },
+  {
+    "id": "LA-06",
+    "title": "README, deploy, size check, submit",
+    "instruction": "Write README.md: chosen vertical + why, approach/logic (rule engine + LLM split explained), how it works (setup steps incl. GEMINI_API_KEY), assumptions (English-only, not legal advice, India-specific law, BNS/IPC verification date). Deploy to Vercel, set GEMINI_API_KEY as env var there (not in repo). Check final repo size (du -sh .git and working tree, excluding node_modules) is under 10MB. Do a full smoke test on the deployed link end to end.",
+    "acceptance": "Public repo link + live Vercel link both work; repo size confirmed <10MB; README covers all 4 required sections; fresh clone + npm install + npm run build succeeds with no errors.",
+    "note": "This is submission time - use one of the 3 attempts only after this full checklist passes locally and on the deployed link."
+  }
+]
