@@ -18,10 +18,24 @@ function sanitizeInput(text: string): string {
     .trim();
 }
 
+function cleanupStaleEntries(now: number) {
+  if (qaRateLimitMap.size > 1000) {
+    for (const [ip, timestamps] of qaRateLimitMap.entries()) {
+      const validTimestamps = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+      if (validTimestamps.length === 0) {
+        qaRateLimitMap.delete(ip);
+      } else {
+        qaRateLimitMap.set(ip, validTimestamps);
+      }
+    }
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const clientIp = getClientIp(req);
     const now = Date.now();
+    cleanupStaleEntries(now);
     const timestamps = (qaRateLimitMap.get(clientIp) || []).filter(
       t => now - t < RATE_LIMIT_WINDOW_MS
     );
@@ -143,4 +157,17 @@ ${cleanQ}`;
   } catch {
     return NextResponse.json({ error: 'Unexpected error answering question.' }, { status: 500 });
   }
+}
+
+export async function GET() {
+  return NextResponse.json(
+    { error: 'Method Not Allowed. Only POST requests are supported on this endpoint.' },
+    {
+      status: 405,
+      headers: {
+        Allow: 'POST',
+        'Cache-Control': 'no-store, max-age=0'
+      }
+    }
+  );
 }

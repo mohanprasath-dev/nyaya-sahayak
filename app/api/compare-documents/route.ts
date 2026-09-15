@@ -18,10 +18,24 @@ function sanitizeInput(text: string): string {
     .trim();
 }
 
+function cleanupStaleEntries(now: number) {
+  if (compareRateLimitMap.size > 1000) {
+    for (const [ip, timestamps] of compareRateLimitMap.entries()) {
+      const validTimestamps = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+      if (validTimestamps.length === 0) {
+        compareRateLimitMap.delete(ip);
+      } else {
+        compareRateLimitMap.set(ip, validTimestamps);
+      }
+    }
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const clientIp = getClientIp(req);
     const now = Date.now();
+    cleanupStaleEntries(now);
     const timestamps = (compareRateLimitMap.get(clientIp) || []).filter(
       t => now - t < RATE_LIMIT_WINDOW_MS
     );
@@ -134,4 +148,17 @@ ${cleanRevised}`;
   } catch {
     return NextResponse.json({ error: 'Unexpected error comparing clauses.' }, { status: 500 });
   }
+}
+
+export async function GET() {
+  return NextResponse.json(
+    { error: 'Method Not Allowed. Only POST requests are supported on this endpoint.' },
+    {
+      status: 405,
+      headers: {
+        Allow: 'POST',
+        'Cache-Control': 'no-store, max-age=0'
+      }
+    }
+  );
 }

@@ -1,30 +1,41 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
   subsets: ['latin'],
+  display: 'swap',
 });
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+  display: 'swap',
 });
 
+export const viewport: Viewport = {
+  themeColor: '#0f766e',
+  width: 'device-width',
+  initialScale: 1,
+  colorScheme: 'light',
+};
+
 export const metadata: Metadata = {
-  title: "Nyaya Sahayak - Women's Legal Safety & Rights Assistant",
+  title: "Nyaya Sahayak - AI for Legal Assistance & Access (India)",
   description:
-    'Empowering women in India with verified legal statutes (POSH Act 2013, PWDVA 2005, IT Act 2000, BNS 2023), immediate action roadmaps, emergency helplines, and customized complaint draft templates.',
+    'Making Indian statutory law, contract rights, and legal remedies accessible through deterministic statutory reasoning and Gemini GenAI. Covers POSH Act 2013, PWDVA 2005, IT Act 2000, BNS 2023, and Indian Contract Act 1872.',
   keywords: [
     'POSH Act 2013',
     'Domestic Violence Act 2005',
     'BNS 2023',
-    'IPC 354',
-    'IT Act 66E',
-    'Women Legal Rights India',
+    'BNSS Zero FIR',
+    'Indian Contract Act Section 27',
+    'Legal Assistance India',
     'Nyaya Sahayak'
-  ]
+  ],
+  authors: [{ name: 'Nyaya Sahayak Team' }],
+  applicationName: 'Nyaya Sahayak',
 };
 
 export default function RootLayout({

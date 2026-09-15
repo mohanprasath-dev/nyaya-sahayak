@@ -192,3 +192,16 @@ STRICT GUIDELINES:
     );
   }
 }
+
+export async function GET() {
+  return NextResponse.json(
+    { error: 'Method Not Allowed. Only POST requests are supported on this endpoint.' },
+    {
+      status: 405,
+      headers: {
+        Allow: 'POST',
+        'Cache-Control': 'no-store, max-age=0'
+      }
+    }
+  );
+}
