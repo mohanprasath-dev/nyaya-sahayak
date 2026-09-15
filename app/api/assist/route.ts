@@ -62,7 +62,16 @@ export async function POST(req: NextRequest) {
     timestamps.push(now);
     rateLimitMap.set(clientIp, timestamps);
 
-    // 2. Request body validation
+    // 2. Request body size check
+    const contentLength = req.headers.get('content-length');
+    if (contentLength && parseInt(contentLength, 10) > 15000) {
+      return NextResponse.json(
+        { error: 'Payload too large. Maximum allowed request size is 15KB.' },
+        { status: 413 }
+      );
+    }
+
+    // 3. Request body validation
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== 'object') {
       return NextResponse.json(

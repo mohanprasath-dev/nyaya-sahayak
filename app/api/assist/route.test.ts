@@ -131,4 +131,42 @@ describe('/api/assist API Route Integration Test', () => {
     const data = await blockedRes.json();
     expect(data.error).toContain('Too many requests');
   });
+
+  it('rejects oversized payload exceeding 15KB with status 413', async () => {
+    const req = new Request('http://localhost:3000/api/assist', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'content-length': '20000',
+        'x-forwarded-for': '192.168.1.52'
+      },
+      body: JSON.stringify({
+        category: 'public_safety_other',
+        answers: {}
+      })
+    });
+
+    const res = await POST(req as any);
+    expect(res.status).toBe(413);
+
+    const data = await res.json();
+    expect(data.error).toContain('Payload too large');
+  });
+
+  it('handles malformed non-JSON body gracefully with status 400', async () => {
+    const req = new Request('http://localhost:3000/api/assist', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain',
+        'x-forwarded-for': '192.168.1.53'
+      },
+      body: 'this is not a valid JSON string'
+    });
+
+    const res = await POST(req as any);
+    expect(res.status).toBe(400);
+
+    const data = await res.json();
+    expect(data.error).toContain('Invalid JSON');
+  });
 });
