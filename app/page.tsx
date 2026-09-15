@@ -7,6 +7,8 @@ import {
   DocumentAnalysisResult,
   SAMPLE_LEGAL_DOCUMENTS
 } from '@/lib/documentScanner';
+import { ClauseComparisonResult } from '@/lib/documentComparator';
+import { DocumentQAResult } from '@/lib/documentQA';
 
 interface ApiResponse {
   success: boolean;
@@ -27,9 +29,21 @@ interface DocApiResponse {
   error?: string;
 }
 
+interface CompareApiResponse {
+  success: boolean;
+  comparison: ClauseComparisonResult;
+  error?: string;
+}
+
+interface QaApiResponse {
+  success: boolean;
+  qa: DocumentQAResult;
+  error?: string;
+}
+
 export default function HomePage() {
   // Navigation active tab
-  const [activeTab, setActiveTab] = useState<'assistant' | 'docScanner'>('assistant');
+  const [activeTab, setActiveTab] = useState<'assistant' | 'docScanner' | 'compare' | 'qa'>('assistant');
 
   // Assistant state
   const [selectedCategory, setSelectedCategory] = useState<LegalCategory>('workplace_harassment');
@@ -50,6 +64,20 @@ export default function HomePage() {
   const [isDocLoading, setIsDocLoading] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
   const [docResult, setDocResult] = useState<DocApiResponse | null>(null);
+
+  // Comparator state
+  const [origText, setOrigText] = useState('');
+  const [revText, setRevText] = useState('');
+  const [isCompLoading, setIsCompLoading] = useState(false);
+  const [compError, setCompError] = useState<string | null>(null);
+  const [compResult, setCompResult] = useState<CompareApiResponse | null>(null);
+
+  // Q&A state
+  const [qaDocText, setQaDocText] = useState('');
+  const [qaQuestion, setQaQuestion] = useState('');
+  const [isQaLoading, setIsQaLoading] = useState(false);
+  const [qaError, setQaError] = useState<string | null>(null);
+  const [qaResult, setQaResult] = useState<QaApiResponse | null>(null);
 
   // Handle category change
   const handleCategorySelect = (category: LegalCategory) => {
@@ -112,21 +140,16 @@ export default function HomePage() {
       });
 
       const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to retrieve legal guidance. Please try again.');
+        throw new Error(data.error || 'Failed to retrieve legal guidance.');
       }
 
       setResult(data);
       setTimeout(() => {
-        const resultSection = document.getElementById('results-section');
-        if (resultSection) {
-          resultSection.scrollIntoView({ behavior: 'smooth' });
-        }
+        document.getElementById('results-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'A network error occurred.';
-      setErrorMessage(message);
+      setErrorMessage(err instanceof Error ? err.message : 'A network error occurred.');
     } finally {
       setIsLoading(false);
     }
@@ -150,29 +173,85 @@ export default function HomePage() {
       });
 
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.error || 'Failed to analyze legal document.');
       }
 
       setDocResult(data);
       setTimeout(() => {
-        const docResultSection = document.getElementById('doc-results-section');
-        if (docResultSection) {
-          docResultSection.scrollIntoView({ behavior: 'smooth' });
-        }
+        document.getElementById('doc-results-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'A network error occurred.';
-      setDocError(message);
+      setDocError(err instanceof Error ? err.message : 'A network error occurred.');
     } finally {
       setIsDocLoading(false);
     }
   };
 
-  const handleLoadSample = (sampleText: string) => {
-    setDocContent(sampleText);
-    setDocError(null);
+  const handleCompareSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (origText.trim().length < 10 || revText.trim().length < 10) {
+      setCompError('Please provide at least 10 characters for both original and revised clauses.');
+      return;
+    }
+
+    setIsCompLoading(true);
+    setCompError(null);
+
+    try {
+      const response = await fetch('/api/compare-documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ originalText: origText.trim(), revisedText: revText.trim() })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to compare clauses.');
+      }
+
+      setCompResult(data);
+      setTimeout(() => {
+        document.getElementById('comp-results-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (err: unknown) {
+      setCompError(err instanceof Error ? err.message : 'Comparison request failed.');
+    } finally {
+      setIsCompLoading(false);
+    }
+  };
+
+  const handleQaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (qaDocText.trim().length < 15 || qaQuestion.trim().length < 5) {
+      setQaError('Please provide both the legal document text and a specific question.');
+      return;
+    }
+
+    setIsQaLoading(true);
+    setQaError(null);
+
+    try {
+      const response = await fetch('/api/document-qa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentContent: qaDocText.trim(), question: qaQuestion.trim() })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to answer legal query.');
+      }
+
+      setQaResult(data);
+      setTimeout(() => {
+        document.getElementById('qa-results-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (err: unknown) {
+      setQaError(err instanceof Error ? err.message : 'Q&A request failed.');
+    } finally {
+      setIsQaLoading(false);
+    }
   };
 
   const handleCopyToClipboard = async () => {
@@ -186,19 +265,6 @@ export default function HomePage() {
     }
   };
 
-  const handleReset = () => {
-    setResult(null);
-    setFreeText('');
-    setErrorMessage(null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleDocReset = () => {
-    setDocResult(null);
-    setDocError(null);
-    setDocContent('');
-  };
-
   return (
     <div className="min-h-screen flex flex-col justify-between bg-slate-50">
       {/* 1. Emergency Banner */}
@@ -210,7 +276,7 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-rose-400 animate-pulse" aria-hidden="true" />
             <strong className="font-semibold tracking-wide uppercase">Emergency 24x7:</strong>
-            <span>If you are in immediate danger, dial</span>
+            <span>If in immediate danger, dial</span>
             <a
               href="tel:112"
               className="underline font-bold text-white hover:text-rose-200 focus:ring-2 focus:ring-rose-300 rounded px-1"
@@ -226,16 +292,10 @@ export default function HomePage() {
             </a>
           </div>
           <div className="flex items-center gap-4">
-            <a
-              href="tel:1930"
-              className="hover:text-rose-200 focus:ring-2 focus:ring-rose-300 rounded px-1"
-            >
+            <a href="tel:1930" className="hover:text-rose-200 focus:ring-2 focus:ring-rose-300 rounded px-1">
               Cyber Crime: <strong>1930</strong>
             </a>
-            <a
-              href="tel:7827170170"
-              className="hover:text-rose-200 focus:ring-2 focus:ring-rose-300 rounded px-1"
-            >
+            <a href="tel:7827170170" className="hover:text-rose-200 focus:ring-2 focus:ring-rose-300 rounded px-1">
               NCW Helpline: <strong>7827170170</strong>
             </a>
           </div>
@@ -260,37 +320,63 @@ export default function HomePage() {
               </div>
             </div>
             <p className="text-xs md:text-sm text-slate-600 mt-2 max-w-2xl">
-              Understand rights, navigate legal procedures, simplify complex contracts, and generate formal complaint drafts with verified Indian statutes.
+              Navigate statutory rights, scan legal contracts, compare clause versions, and query documents against Indian legislation.
             </p>
           </div>
 
           {/* Tab Navigation */}
-          <nav aria-label="Main Capabilities" className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <nav aria-label="Main Capabilities" className="flex flex-wrap items-center bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1">
             <button
               type="button"
               role="tab"
               aria-selected={activeTab === 'assistant'}
               onClick={() => setActiveTab('assistant')}
-              className={`px-4 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-teal-600 ${
+              className={`px-3 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-teal-600 ${
                 activeTab === 'assistant'
                   ? 'bg-white text-teal-800 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Guided Safety Assistant
+              1. Guided Safety Assistant
             </button>
             <button
               type="button"
               role="tab"
               aria-selected={activeTab === 'docScanner'}
               onClick={() => setActiveTab('docScanner')}
-              className={`px-4 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-teal-600 ${
+              className={`px-3 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-teal-600 ${
                 activeTab === 'docScanner'
                   ? 'bg-white text-teal-800 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Document &amp; Clause Scanner
+              2. Document &amp; Clause Scanner
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'compare'}
+              onClick={() => setActiveTab('compare')}
+              className={`px-3 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-teal-600 ${
+                activeTab === 'compare'
+                  ? 'bg-white text-teal-800 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              3. Clause Comparator
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'qa'}
+              onClick={() => setActiveTab('qa')}
+              className={`px-3 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-teal-600 ${
+                activeTab === 'qa'
+                  ? 'bg-white text-teal-800 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              4. Document Q&amp;A
             </button>
           </nav>
         </div>
@@ -302,8 +388,12 @@ export default function HomePage() {
         <div aria-live="polite" aria-atomic="true" className="sr-only">
           {isLoading && 'Analyzing statutory protections and preparing roadmap...'}
           {isDocLoading && 'Analyzing legal document and scanning for statutory risks...'}
+          {isCompLoading && 'Comparing legal clauses and calculating risk delta...'}
+          {isQaLoading && 'Evaluating question against document and Indian law...'}
           {result && `Guidance ready for ${result.ruleOutput.categoryLabel}.`}
           {docResult && `Document review ready for ${docResult.analysis.documentType}.`}
+          {compResult && `Comparison completed: ${compResult.comparison.riskDelta} risk delta.`}
+          {qaResult && 'Answer ready for your question.'}
           {copyStatus === 'copied' && 'Formal complaint letter copied to clipboard.'}
         </div>
 
@@ -313,17 +403,14 @@ export default function HomePage() {
           className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg mb-8 shadow-xs"
         >
           <div className="flex items-start gap-3">
-            <div className="text-amber-800 font-bold text-lg" aria-hidden="true">
-              !
-            </div>
+            <div className="text-amber-800 font-bold text-lg" aria-hidden="true">!</div>
             <div>
               <h2 id="disclaimer-heading" className="text-sm font-bold text-amber-900">
                 Statutory Notice &amp; Scope of Information
               </h2>
               <p className="text-xs md:text-sm text-amber-800 mt-1 leading-relaxed">
                 Nyaya Sahayak provides procedural legal information, verified statute mappings, contract risk evaluations, and
-                self-help complaint drafts. <strong>This is not formal legal advice</strong>, nor does it establish an attorney-client relationship.
-                All information is processed statelessly in real-time. No personal details, documents, or complaints are stored.
+                self-help complaint drafts. <strong>This is not formal legal advice</strong>. All information is processed statelessly in real-time. Zero personal data or documents are stored.
               </p>
             </div>
           </div>
@@ -344,11 +431,10 @@ export default function HomePage() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-8">
-                  {/* Category Grid */}
                   <fieldset>
                     <legend className="sr-only">Choose a category of incident</legend>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Category 1 */}
+                      {/* Workplace */}
                       <label
                         className={`cursor-pointer rounded-xl border p-5 transition-all flex flex-col justify-between ${
                           selectedCategory === 'workplace_harassment'
@@ -358,9 +444,7 @@ export default function HomePage() {
                       >
                         <div>
                           <div className="flex items-center justify-between mb-2">
-                            <span className="font-bold text-slate-900 text-base">
-                              Workplace Sexual Harassment
-                            </span>
+                            <span className="font-bold text-slate-900 text-base">Workplace Sexual Harassment</span>
                             <input
                               type="radio"
                               name="category"
@@ -371,7 +455,7 @@ export default function HomePage() {
                             />
                           </div>
                           <p className="text-xs text-slate-600 leading-relaxed">
-                            Unwelcome conduct, demands for favours, hostile work environment. Governed by the POSH Act, 2013 and BNS Section 75.
+                            Unwelcome conduct, demands for favours, hostile environment. Governed by POSH Act, 2013 and BNS Section 75.
                           </p>
                         </div>
                         <div className="mt-3 text-xs font-semibold text-teal-800">
@@ -379,7 +463,7 @@ export default function HomePage() {
                         </div>
                       </label>
 
-                      {/* Category 2 */}
+                      {/* Domestic Violence */}
                       <label
                         className={`cursor-pointer rounded-xl border p-5 transition-all flex flex-col justify-between ${
                           selectedCategory === 'domestic_violence'
@@ -389,9 +473,7 @@ export default function HomePage() {
                       >
                         <div>
                           <div className="flex items-center justify-between mb-2">
-                            <span className="font-bold text-slate-900 text-base">
-                              Domestic Violence &amp; Abuse
-                            </span>
+                            <span className="font-bold text-slate-900 text-base">Domestic Violence &amp; Abuse</span>
                             <input
                               type="radio"
                               name="category"
@@ -402,7 +484,7 @@ export default function HomePage() {
                             />
                           </div>
                           <p className="text-xs text-slate-600 leading-relaxed">
-                            Physical, verbal, emotional, economic harm in a shared household. Governed by PWDVA 2005 and BNS Section 85 (erstwhile IPC 498A).
+                            Physical, emotional, economic abuse in shared household. Governed by PWDVA 2005 and BNS Section 85.
                           </p>
                         </div>
                         <div className="mt-3 text-xs font-semibold text-teal-800">
@@ -410,7 +492,7 @@ export default function HomePage() {
                         </div>
                       </label>
 
-                      {/* Category 3 */}
+                      {/* Cyber Harassment */}
                       <label
                         className={`cursor-pointer rounded-xl border p-5 transition-all flex flex-col justify-between ${
                           selectedCategory === 'cyber_harassment'
@@ -420,9 +502,7 @@ export default function HomePage() {
                       >
                         <div>
                           <div className="flex items-center justify-between mb-2">
-                            <span className="font-bold text-slate-900 text-base">
-                              Cyber Harassment &amp; Digital Privacy
-                            </span>
+                            <span className="font-bold text-slate-900 text-base">Cyber Harassment &amp; Privacy</span>
                             <input
                               type="radio"
                               name="category"
@@ -433,15 +513,15 @@ export default function HomePage() {
                             />
                           </div>
                           <p className="text-xs text-slate-600 leading-relaxed">
-                            Non-consensual images, digital stalking, impersonation, threats. Governed by IT Act Sec 66E/67 &amp; BNS Sec 78.
+                            Non-consensual images, digital stalking, impersonation. Governed by IT Act Sec 66E/67 &amp; BNS Sec 78.
                           </p>
                         </div>
                         <div className="mt-3 text-xs font-semibold text-teal-800">
-                          Authority: National Cyber Crime Portal / Cyber Police Cell
+                          Authority: National Cyber Crime Portal / Cyber Cell
                         </div>
                       </label>
 
-                      {/* Category 4 */}
+                      {/* Public Safety */}
                       <label
                         className={`cursor-pointer rounded-xl border p-5 transition-all flex flex-col justify-between ${
                           selectedCategory === 'public_safety_other'
@@ -451,9 +531,7 @@ export default function HomePage() {
                       >
                         <div>
                           <div className="flex items-center justify-between mb-2">
-                            <span className="font-bold text-slate-900 text-base">
-                              Public Safety, Stalking &amp; Outrage to Modesty
-                            </span>
+                            <span className="font-bold text-slate-900 text-base">Public Safety &amp; Stalking</span>
                             <input
                               type="radio"
                               name="category"
@@ -464,11 +542,11 @@ export default function HomePage() {
                             />
                           </div>
                           <p className="text-xs text-slate-600 leading-relaxed">
-                            Physical stalking, transit harassment, molestation, catcalling. Governed by BNS Sec 74/75/78 and BNSS Sec 173 (Zero FIR).
+                            Physical stalking, molestation, catcalling. Governed by BNS Sec 74/75/78 and BNSS Sec 173 (Zero FIR).
                           </p>
                         </div>
                         <div className="mt-3 text-xs font-semibold text-teal-800">
-                          Authority: Station House Officer (Zero FIR at any Police Station)
+                          Authority: Station House Officer (Zero FIR at any Station)
                         </div>
                       </label>
                     </div>
@@ -476,26 +554,23 @@ export default function HomePage() {
 
                   {/* Step 2: Context Questions */}
                   <div className="border-t border-slate-200 pt-6">
-                    <h3 className="text-lg font-bold text-slate-900 mb-1">
-                      Step 2: Contextual Details
-                    </h3>
+                    <h3 className="text-lg font-bold text-slate-900 mb-1">Step 2: Contextual Details</h3>
                     <p className="text-xs text-slate-600 mb-6">
                       These answers determine the correct legal authority and applicable statutory sections.
                     </p>
 
                     <div className="space-y-6">
-                      {/* Workplace Context Questions */}
                       {selectedCategory === 'workplace_harassment' && (
                         <>
                           <div>
                             <label htmlFor="harasserRole" className="block text-sm font-semibold text-slate-800 mb-2">
-                              1. What is the role of the person involved?
+                              1. Role of the person involved:
                             </label>
                             <select
                               id="harasserRole"
                               value={answers.harasserRole || 'colleague'}
                               onChange={e => handleAnswerChange('harasserRole', e.target.value)}
-                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600"
+                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600"
                             >
                               <option value="colleague">A peer or co-worker</option>
                               <option value="employer_or_management">The employer, founder, owner, or senior executive</option>
@@ -516,87 +591,52 @@ export default function HomePage() {
                               id="hasInternalCommittee"
                               value={answers.hasInternalCommittee || 'yes'}
                               onChange={e => handleAnswerChange('hasInternalCommittee', e.target.value)}
-                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600"
+                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600"
                             >
                               <option value="yes">Yes, an active Internal Committee exists (10+ employees)</option>
                               <option value="no">No, company has fewer than 10 employees or no IC formed</option>
                               <option value="unsure">Unsure / Not communicated to employees</option>
                             </select>
                           </div>
-
-                          <div>
-                            <label htmlFor="priorReportFiled" className="block text-sm font-semibold text-slate-800 mb-2">
-                              3. Have you previously filed a report that went unaddressed?
-                            </label>
-                            <select
-                              id="priorReportFiled"
-                              value={answers.priorReportFiled || 'no'}
-                              onChange={e => handleAnswerChange('priorReportFiled', e.target.value)}
-                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600"
-                            >
-                              <option value="no">No, this is my first formal submission</option>
-                              <option value="yes">Yes, previously submitted but no action was taken</option>
-                            </select>
-                          </div>
                         </>
                       )}
 
-                      {/* Domestic Violence Context Questions */}
                       {selectedCategory === 'domestic_violence' && (
                         <>
                           <div>
                             <label htmlFor="relationship" className="block text-sm font-semibold text-slate-800 mb-2">
-                              1. What is your relationship with the respondent?
+                              1. Relationship with the respondent:
                             </label>
                             <select
                               id="relationship"
                               value={answers.relationship || 'spouse'}
                               onChange={e => handleAnswerChange('relationship', e.target.value)}
-                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600"
+                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600"
                             >
                               <option value="spouse">Husband / Spouse</option>
                               <option value="in_laws">In-laws / Relatives of spouse</option>
-                              <option value="live_in_partner">Live-in partner (relationship in the nature of marriage)</option>
+                              <option value="live_in_partner">Live-in partner</option>
                               <option value="other_relative">Other family relative</option>
                             </select>
                           </div>
 
                           <div>
                             <label htmlFor="sharedHousehold" className="block text-sm font-semibold text-slate-800 mb-2">
-                              2. Do you currently live or have you lived in a shared household with them?
+                              2. Do you reside in a shared household with them?
                             </label>
                             <select
                               id="sharedHousehold"
                               value={answers.sharedHousehold || 'yes'}
                               onChange={e => handleAnswerChange('sharedHousehold', e.target.value)}
-                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600"
+                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600"
                             >
-                              <option value="yes">Yes, living together or lived together in a shared residence</option>
+                              <option value="yes">Yes, living together in shared residence</option>
                               <option value="no">No, living in separate households</option>
-                            </select>
-                            <p className="text-xs text-slate-500 mt-1">
-                              Section 19 of PWDVA guarantees the right to reside in the shared household regardless of ownership title.
-                            </p>
-                          </div>
-
-                          <div>
-                            <label htmlFor="childrenInvolved" className="block text-sm font-semibold text-slate-800 mb-2">
-                              3. Are minor children involved or in your custody?
-                            </label>
-                            <select
-                              id="childrenInvolved"
-                              value={answers.childrenInvolved || 'no'}
-                              onChange={e => handleAnswerChange('childrenInvolved', e.target.value)}
-                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600"
-                            >
-                              <option value="no">No minor children involved</option>
-                              <option value="yes">Yes, children are with me or involved</option>
                             </select>
                           </div>
                         </>
                       )}
 
-                      {/* Cyber Harassment Context Questions */}
                       {selectedCategory === 'cyber_harassment' && (
                         <>
                           <div>
@@ -607,56 +647,22 @@ export default function HomePage() {
                               id="incidentType"
                               value={answers.incidentType || 'stalking_threats'}
                               onChange={e => handleAnswerChange('incidentType', e.target.value)}
-                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600"
+                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600"
                             >
                               <option value="non_consensual_images">Non-consensual private photos / intimate imagery</option>
-                              <option value="stalking_threats">Online stalking, continuous unwanted messages, or threats</option>
-                              <option value="impersonation_fake_profile">Impersonation, fake profiles, or identity theft</option>
-                              <option value="defamatory_messages">Defamatory messages, cyberbullying, or character assassination</option>
+                              <option value="stalking_threats">Online stalking, unwanted messages, or threats</option>
+                              <option value="impersonation_fake_profile">Impersonation or fake profile</option>
+                              <option value="defamatory_messages">Defamatory messages or cyberbullying</option>
                             </select>
                             {answers.incidentType === 'non_consensual_images' && (
                               <p className="text-xs text-rose-700 font-medium mt-1.5 bg-rose-50 p-2 rounded">
-                                Emergency Provision: Under Rule 3(2)(b) of the IT Rules 2021, social media platforms are legally required to remove non-consensual intimate imagery within 24 hours of receiving notice.
+                                Emergency Provision: Under Rule 3(2)(b) of the IT Rules 2021, platforms are legally required to remove non-consensual intimate imagery within 24 hours of notice.
                               </p>
                             )}
-                          </div>
-
-                          <div>
-                            <label htmlFor="platformType" className="block text-sm font-semibold text-slate-800 mb-2">
-                              2. Which platform was used?
-                            </label>
-                            <select
-                              id="platformType"
-                              value={answers.platformType || 'social_media'}
-                              onChange={e => handleAnswerChange('platformType', e.target.value)}
-                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600"
-                            >
-                              <option value="social_media">Social Media (Instagram, Facebook, X / Twitter)</option>
-                              <option value="messaging_app">Direct Messaging (WhatsApp, Telegram, Signal)</option>
-                              <option value="email">Email</option>
-                              <option value="public_website">Public Website or Forum</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label htmlFor="evidencePreserved" className="block text-sm font-semibold text-slate-800 mb-2">
-                              3. Have you preserved digital evidence?
-                            </label>
-                            <select
-                              id="evidencePreserved"
-                              value={answers.evidencePreserved || 'yes'}
-                              onChange={e => handleAnswerChange('evidencePreserved', e.target.value)}
-                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600"
-                            >
-                              <option value="yes">Yes, have uncropped screenshots, profile URLs, and chat exports</option>
-                              <option value="partial">Some evidence preserved, but need guidance on how to preserve properly</option>
-                              <option value="no">No, content was deleted or not yet captured</option>
-                            </select>
                           </div>
                         </>
                       )}
 
-                      {/* Public Safety / Other Context Questions */}
                       {selectedCategory === 'public_safety_other' && (
                         <>
                           <div>
@@ -667,33 +673,17 @@ export default function HomePage() {
                               id="incidentNature"
                               value={answers.incidentNature || 'verbal_harassment_eve_teasing'}
                               onChange={e => handleAnswerChange('incidentNature', e.target.value)}
-                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600"
+                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600"
                             >
-                              <option value="physical_stalking">Physical stalking (following, loitering, persistent tracking)</option>
-                              <option value="verbal_harassment_eve_teasing">Verbal harassment, gestures, eve-teasing (BNS Sec 79 / IPC 509)</option>
-                              <option value="physical_assault">Physical assault, molestation, or use of force (BNS Sec 74 / IPC 354)</option>
-                              <option value="public_transit_incident">Harassment in bus, metro, train, or auto-rickshaw</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label htmlFor="perpetratorKnown" className="block text-sm font-semibold text-slate-800 mb-2">
-                              2. Is the perpetrator known to you?
-                            </label>
-                            <select
-                              id="perpetratorKnown"
-                              value={answers.perpetratorKnown || 'stranger'}
-                              onChange={e => handleAnswerChange('perpetratorKnown', e.target.value)}
-                              className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600"
-                            >
-                              <option value="stranger">An unknown person / stranger</option>
-                              <option value="known_person">An acquaintance, neighbor, or known individual</option>
+                              <option value="physical_stalking">Physical stalking (following, persistent tracking)</option>
+                              <option value="verbal_harassment_eve_teasing">Verbal harassment, eve-teasing (BNS Sec 79 / IPC 509)</option>
+                              <option value="physical_assault">Physical assault, molestation (BNS Sec 74 / IPC 354)</option>
+                              <option value="public_transit_incident">Harassment in public transit</option>
                             </select>
                           </div>
                         </>
                       )}
 
-                      {/* Common Question: Immediate Safety Risk */}
                       <div>
                         <label htmlFor="immediateDanger" className="block text-sm font-semibold text-slate-800 mb-2">
                           Are you currently facing immediate physical threats or violence?
@@ -702,7 +692,7 @@ export default function HomePage() {
                           id="immediateDanger"
                           value={answers.immediateDanger || 'no'}
                           onChange={e => handleAnswerChange('immediateDanger', e.target.value)}
-                          className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600"
+                          className="w-full md:w-2/3 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600"
                         >
                           <option value="no">No, I am currently in a safe location</option>
                           <option value="yes">Yes, I am in imminent danger or facing active threats</option>
@@ -717,39 +707,27 @@ export default function HomePage() {
                       <label htmlFor="freeText" className="block text-sm font-semibold text-slate-800">
                         Step 3: Incident Context (Optional, max 500 characters)
                       </label>
-                      <span
-                        className={`text-xs font-mono font-medium ${
-                          freeText.length > 450 ? 'text-amber-600 font-bold' : 'text-slate-500'
-                        }`}
-                      >
+                      <span className="text-xs font-mono text-slate-500">
                         {freeText.length} / 500 characters
                       </span>
                     </div>
-                    <p className="text-xs text-slate-600 mb-3">
-                      You may provide a brief description (dates, key statements). Do not enter passwords, OTPs, or financial details.
-                    </p>
                     <textarea
                       id="freeText"
-                      rows={4}
+                      rows={3}
                       maxLength={500}
                       value={freeText}
                       onChange={e => setFreeText(e.target.value)}
-                      placeholder="e.g. On Friday at the office, the respondent made unwelcome remarks and sent persistent messages after hours. When told to stop, they threatened my appraisal."
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600 font-sans"
+                      placeholder="e.g. On Friday at the office, the respondent made unwelcome remarks and sent messages after hours. When told to stop, they threatened my appraisal."
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600 font-sans"
                     />
                   </div>
 
-                  {/* Error Display */}
                   {errorMessage && (
-                    <div
-                      role="alert"
-                      className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium"
-                    >
+                    <div role="alert" className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium">
                       {errorMessage}
                     </div>
                   )}
 
-                  {/* Submit Button */}
                   <div className="border-t border-slate-200 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
                     <div className="text-xs text-slate-500 flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true" />
@@ -758,29 +736,9 @@ export default function HomePage() {
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full md:w-auto px-6 py-3 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-semibold text-sm transition-colors shadow-xs focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full md:w-auto px-6 py-3 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-semibold text-sm transition-colors shadow-xs focus:ring-2 focus:ring-teal-500 disabled:opacity-50"
                     >
-                      {isLoading ? (
-                        <>
-                          <svg
-                            className="animate-spin h-4 w-4 text-white"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                          >
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            />
-                          </svg>
-                          <span>Analyzing Statutory Protections...</span>
-                        </>
-                      ) : (
-                        <span>Generate Legal Guidance &amp; Draft Letter</span>
-                      )}
+                      {isLoading ? 'Analyzing Statutory Protections...' : 'Generate Legal Guidance & Draft Letter'}
                     </button>
                   </div>
                 </form>
@@ -788,67 +746,45 @@ export default function HomePage() {
             ) : (
               /* Results View */
               <div id="results-section" tabIndex={-1} className="space-y-8 focus:outline-none">
-                {/* Top Bar with Return Action */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
                   <div>
-                    <span className="text-xs uppercase tracking-wider font-bold text-teal-800">
-                      Legal Assistance Summary
-                    </span>
-                    <h2 className="text-xl font-bold text-slate-900">
-                      {result.ruleOutput.categoryLabel}
-                    </h2>
+                    <span className="text-xs uppercase tracking-wider font-bold text-teal-800">Legal Assistance Summary</span>
+                    <h2 className="text-xl font-bold text-slate-900">{result.ruleOutput.categoryLabel}</h2>
                   </div>
                   <button
                     type="button"
-                    onClick={handleReset}
+                    onClick={() => { setResult(null); setFreeText(''); }}
                     className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors focus:ring-2 focus:ring-teal-600"
                   >
                     &lt; Start Another Inquiry
                   </button>
                 </div>
 
-                {/* High Risk Alert if Applicable */}
                 {result.ruleOutput.riskLevel === 'high' && (
-                  <div
-                    role="alert"
-                    className="bg-rose-50 border-l-4 border-rose-600 p-5 rounded-r-xl shadow-xs"
-                  >
+                  <div role="alert" className="bg-rose-50 border-l-4 border-rose-600 p-5 rounded-r-xl shadow-xs">
                     <div className="flex items-start gap-3">
-                      <div className="text-rose-700 font-bold text-xl" aria-hidden="true">
-                        !
-                      </div>
+                      <div className="text-rose-700 font-bold text-xl" aria-hidden="true">!</div>
                       <div>
-                        <h3 className="font-bold text-rose-900 text-base">
-                          Immediate Protection Alert
-                        </h3>
+                        <h3 className="font-bold text-rose-900 text-base">Immediate Protection Alert</h3>
                         <p className="text-sm text-rose-800 mt-1">
-                          Your situation involves urgent safety concerns. Please do not wait. Call <strong>112 (Emergency Police Dispatch)</strong> or <strong>181 (Women Helpline)</strong> immediately. You are entitled to immediate police assistance and safe shelter.
+                          Urgent safety concern. Please call <strong>112 (Emergency Police Dispatch)</strong> or <strong>181 (Women Helpline)</strong> immediately.
                         </p>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Empathetic Summary Card */}
                 <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-6 shadow-xs">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-teal-900 mb-2">
-                    Personalized Legal Overview
-                  </h3>
-                  <p className="text-slate-800 text-sm md:text-base leading-relaxed">
-                    {result.guidance.empatheticSummary}
-                  </p>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-teal-900 mb-2">Personalized Legal Overview</h3>
+                  <p className="text-slate-800 text-sm md:text-base leading-relaxed">{result.guidance.empatheticSummary}</p>
                 </div>
 
-                {/* 4. Verified Legal Citations Card */}
+                {/* Citations */}
                 <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-4 mb-4">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900">
-                        Verified Governing Statutes &amp; Sections
-                      </h3>
-                      <p className="text-xs text-slate-500">
-                        Deterministic legal mapping - verified Indian statutory provisions (BNS 2023 &amp; IPC equivalents).
-                      </p>
+                      <h3 className="text-lg font-bold text-slate-900">Verified Governing Statutes &amp; Sections</h3>
+                      <p className="text-xs text-slate-500">Deterministic legal mapping - verified Indian statutory provisions (BNS 2023 &amp; IPC equivalents).</p>
                     </div>
                     <span className="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md font-mono">
                       Sources verified: {result.ruleOutput.verifiedAt}
@@ -859,66 +795,35 @@ export default function HomePage() {
                     {result.ruleOutput.applicableSections.map((sec, idx) => (
                       <div key={idx} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
                         <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                          <span className="font-bold text-teal-900 text-sm md:text-base">
-                            {sec.code}
-                          </span>
+                          <span className="font-bold text-teal-900 text-sm md:text-base">{sec.code}</span>
                           {sec.historicalEquivalent && (
                             <span className="text-xs bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded">
                               Erstwhile {sec.historicalEquivalent}
                             </span>
                           )}
                         </div>
-                        <p className="text-xs md:text-sm text-slate-700 leading-relaxed">
-                          {sec.description}
-                        </p>
+                        <p className="text-xs md:text-sm text-slate-700 leading-relaxed">{sec.description}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* 5. Competent Authority & Official Portals */}
+                {/* Authority & Helplines */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between">
                     <div>
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-2">
-                        Competent Redressal Authority
-                      </h3>
-                      <h4 className="text-base md:text-lg font-bold text-slate-900 mb-2">
-                        {result.ruleOutput.primaryAuthority.name}
-                      </h4>
-                      <p className="text-xs md:text-sm text-slate-600 leading-relaxed mb-4">
-                        {result.ruleOutput.primaryAuthority.description}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        <strong>Escalation Path:</strong> {result.ruleOutput.primaryAuthority.escalationAuthority}
-                      </p>
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-2">Competent Authority</h3>
+                      <h4 className="text-base md:text-lg font-bold text-slate-900 mb-2">{result.ruleOutput.primaryAuthority.name}</h4>
+                      <p className="text-xs md:text-sm text-slate-600 leading-relaxed mb-4">{result.ruleOutput.primaryAuthority.description}</p>
+                      <p className="text-xs text-slate-500"><strong>Escalation:</strong> {result.ruleOutput.primaryAuthority.escalationAuthority}</p>
                     </div>
-
-                    {result.ruleOutput.primaryAuthority.officialPortal && (
-                      <div className="mt-4 pt-4 border-t border-slate-100">
-                        <a
-                          href={result.ruleOutput.primaryAuthority.officialPortal}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center text-xs font-semibold text-teal-700 hover:text-teal-800 underline"
-                        >
-                          Visit Official Portal ({result.ruleOutput.primaryAuthority.officialPortal.replace('https://', '')}) -&gt;
-                        </a>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Helplines for this category */}
                   <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-3">
-                      Direct Contact Helplines
-                    </h3>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-3">Direct Contact Helplines</h3>
                     <div className="space-y-3">
                       {result.ruleOutput.helplines.map((hl, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-slate-50"
-                        >
+                        <div key={idx} className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-slate-50">
                           <div>
                             <div className="text-sm font-bold text-slate-900">{hl.name}</div>
                             <div className="text-xs text-slate-500">{hl.hours}</div>
@@ -935,11 +840,9 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* 6. Step-by-Step Action Roadmap */}
+                {/* Steps & Complaint */}
                 <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
-                  <h3 className="text-lg font-bold text-slate-900 mb-4">
-                    Step-by-Step Action Roadmap
-                  </h3>
+                  <h3 className="text-lg font-bold text-slate-900 mb-4">Step-by-Step Action Roadmap</h3>
                   <ol className="space-y-3">
                     {result.guidance.plainLanguageSteps.map((step, idx) => (
                       <li key={idx} className="flex items-start gap-3 text-sm text-slate-800">
@@ -952,33 +855,18 @@ export default function HomePage() {
                   </ol>
                 </div>
 
-                {/* 7. Draft Formal Complaint Letter */}
                 <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4 mb-4">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900">
-                        Formal Complaint / Notice Template
-                      </h3>
-                      <p className="text-xs text-slate-500">
-                        Ready to copy. Fill in bracketed placeholders [in brackets] before signing and submitting.
-                      </p>
+                      <h3 className="text-lg font-bold text-slate-900">Formal Complaint / Notice Template</h3>
+                      <p className="text-xs text-slate-500">Ready to copy. Fill in bracketed placeholders [in brackets] before signing.</p>
                     </div>
                     <button
                       type="button"
                       onClick={handleCopyToClipboard}
                       className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold bg-teal-700 hover:bg-teal-800 text-white rounded-lg transition-colors focus:ring-2 focus:ring-teal-500"
                     >
-                      {copyStatus === 'copied' ? (
-                        <>
-                          <span aria-hidden="true">[OK]</span>
-                          <span>Copied to Clipboard!</span>
-                        </>
-                      ) : (
-                        <>
-                          <span aria-hidden="true">[Copy]</span>
-                          <span>Copy Letter to Clipboard</span>
-                        </>
-                      )}
+                      {copyStatus === 'copied' ? '[OK] Copied to Clipboard!' : '[Copy] Copy Letter to Clipboard'}
                     </button>
                   </div>
 
@@ -986,59 +874,12 @@ export default function HomePage() {
                     {result.guidance.draftLetter}
                   </div>
                 </div>
-
-                {/* 8. Evidence Checklist & Legal Remedies */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
-                    <h3 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
-                      <span className="text-teal-700 font-semibold" aria-hidden="true">[Evidence]</span>
-                      <span>Evidence Checklist</span>
-                    </h3>
-                    <ul className="space-y-2 text-xs md:text-sm text-slate-700">
-                      {result.ruleOutput.evidenceChecklist.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <span className="text-teal-700 font-bold">-</span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
-                    <h3 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
-                      <span className="text-teal-700 font-semibold" aria-hidden="true">[Remedies]</span>
-                      <span>Statutory Legal Remedies Available</span>
-                    </h3>
-                    <ul className="space-y-2 text-xs md:text-sm text-slate-700">
-                      {result.ruleOutput.tailoredRemedies.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <span className="text-teal-700 font-bold">-</span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Bottom Actions */}
-                <div className="bg-slate-100 border border-slate-200 rounded-xl p-5 text-center">
-                  <p className="text-xs text-slate-600 mb-3">
-                    Need to explore another scenario or check guidance for another category?
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="px-6 py-2.5 bg-teal-700 hover:bg-teal-800 text-white font-semibold text-sm rounded-lg transition-colors shadow-xs focus:ring-2 focus:ring-teal-500"
-                  >
-                    Start a New Inquiry
-                  </button>
-                </div>
               </div>
             )}
           </>
         )}
 
-        {/* TAB 2: LEGAL DOCUMENT & CLAUSE SIMPLIFIER */}
+        {/* TAB 2: DOCUMENT & CLAUSE SCANNER */}
         {activeTab === 'docScanner' && (
           <div className="space-y-8">
             <section aria-labelledby="doc-scanner-heading" className="bg-white rounded-xl shadow-xs border border-slate-200 p-6 md:p-8">
@@ -1047,25 +888,25 @@ export default function HomePage() {
                   Legal Document &amp; Policy Scanner
                 </h2>
                 <p className="text-sm text-slate-600 mt-1">
-                  Paste any workplace agreement, NDA, settlement letter, or policy to translate complex legalese into plain language, flag unlawful clauses, and generate questions for your lawyer.
+                  Paste agreements or policies to translate legalese, identify statutory red flags, and generate questions for your lawyer.
                 </p>
               </div>
 
-              {/* Preset Sample Selector */}
+              {/* Sample selector */}
               <div className="mb-6">
                 <span className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                  Or load a pre-configured sample document for testing:
+                  Quick test presets:
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {SAMPLE_LEGAL_DOCUMENTS.map(sample => (
                     <button
                       key={sample.id}
                       type="button"
-                      onClick={() => handleLoadSample(sample.content)}
-                      className="p-3 text-left rounded-lg border border-slate-200 hover:border-teal-600 hover:bg-teal-50/50 transition-all text-xs focus:outline-none focus:ring-2 focus:ring-teal-600"
+                      onClick={() => { setDocContent(sample.content); setDocError(null); }}
+                      className="p-3 text-left rounded-lg border border-slate-200 hover:border-teal-600 hover:bg-teal-50/50 transition-all text-xs focus:ring-2 focus:ring-teal-600"
                     >
                       <div className="font-bold text-slate-900 mb-1">{sample.title}</div>
-                      <div className="text-slate-500 text-2xs leading-relaxed">{sample.description}</div>
+                      <div className="text-slate-500 text-2xs">{sample.description}</div>
                     </button>
                   ))}
                 </div>
@@ -1073,22 +914,17 @@ export default function HomePage() {
 
               <form onSubmit={handleDocumentSubmit} className="space-y-6">
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label htmlFor="docText" className="block text-sm font-semibold text-slate-800">
-                      Document / Agreement Text:
-                    </label>
-                    <span className="text-xs font-mono text-slate-500">
-                      {docContent.length} characters (Max 5,000)
-                    </span>
-                  </div>
+                  <label htmlFor="docText" className="block text-sm font-semibold text-slate-800 mb-2">
+                    Document Text ({docContent.length} characters):
+                  </label>
                   <textarea
                     id="docText"
                     rows={8}
                     maxLength={5000}
                     value={docContent}
                     onChange={e => setDocContent(e.target.value)}
-                    placeholder="Paste legal clauses, employment contracts, non-compete provisions, or grievance policy text here..."
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs md:text-sm font-mono bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600"
+                    placeholder="Paste legal clauses or agreement text here..."
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs md:text-sm font-mono bg-white focus:ring-2 focus:ring-teal-600"
                   />
                 </div>
 
@@ -1098,202 +934,373 @@ export default function HomePage() {
                   </div>
                 )}
 
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-                  <span className="text-xs text-slate-500">
-                    Scans against Indian Contract Act Sec 23/27 and POSH Act statutory minimums.
-                  </span>
-                  <div className="flex gap-3 w-full sm:w-auto">
-                    {docContent && (
-                      <button
-                        type="button"
-                        onClick={() => setDocContent('')}
-                        className="px-4 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors focus:ring-2 focus:ring-teal-600"
-                      >
-                        Clear Text
-                      </button>
-                    )}
+                <div className="flex justify-end gap-3">
+                  {docContent && (
                     <button
-                      type="submit"
-                      disabled={isDocLoading || docContent.trim().length === 0}
-                      className="flex-1 sm:flex-initial px-6 py-2.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-semibold text-sm transition-colors shadow-xs focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      type="button"
+                      onClick={() => setDocContent('')}
+                      className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg"
                     >
-                      {isDocLoading ? (
-                        <>
-                          <svg
-                            className="animate-spin h-4 w-4 text-white"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                          >
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            />
-                          </svg>
-                          <span>Scanning Clauses...</span>
-                        </>
-                      ) : (
-                        <span>Simplify Document &amp; Scan Risks</span>
-                      )}
+                      Clear
                     </button>
-                  </div>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={isDocLoading || docContent.trim().length === 0}
+                    className="px-6 py-2.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-semibold text-sm transition-colors shadow-xs focus:ring-2 focus:ring-teal-500 disabled:opacity-50"
+                  >
+                    {isDocLoading ? 'Scanning Clauses...' : 'Simplify Document & Scan Risks'}
+                  </button>
                 </div>
               </form>
             </section>
 
-            {/* Document Analysis Results */}
             {docResult && (
               <div id="doc-results-section" tabIndex={-1} className="space-y-6 focus:outline-none">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+                <div className="flex justify-between items-center bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs uppercase font-bold tracking-wider text-teal-800">
-                        Document Evaluation
-                      </span>
-                      <span
-                        className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                          docResult.analysis.overallRiskLevel === 'high'
-                            ? 'bg-rose-100 text-rose-800'
-                            : docResult.analysis.overallRiskLevel === 'medium'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-emerald-100 text-emerald-800'
-                        }`}
-                      >
-                        {docResult.analysis.overallRiskLevel} Risk Level
-                      </span>
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-900 mt-1">
-                      {docResult.analysis.documentType} ({docResult.analysis.wordCount} words)
-                    </h3>
+                    <span className="text-xs uppercase font-bold tracking-wider text-teal-800">
+                      {docResult.analysis.overallRiskLevel.toUpperCase()} RISK
+                    </span>
+                    <h3 className="text-lg font-bold text-slate-900">{docResult.analysis.documentType}</h3>
                   </div>
                   <button
                     type="button"
-                    onClick={handleDocReset}
-                    className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors focus:ring-2 focus:ring-teal-600"
+                    onClick={() => setDocResult(null)}
+                    className="px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg"
                   >
-                    &lt; Clear &amp; Scan Another Document
+                    &lt; Clear &amp; Scan Another
                   </button>
                 </div>
 
-                {/* Plain English Summary */}
                 <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-6 shadow-xs">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-teal-900 mb-2">
-                    Plain-Language Explanation
-                  </h4>
-                  <p className="text-slate-800 text-sm md:text-base leading-relaxed">
-                    {docResult.analysis.plainSummary}
-                  </p>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-teal-900 mb-2">Plain Language Explanation</h4>
+                  <p className="text-slate-800 text-sm md:text-base leading-relaxed">{docResult.analysis.plainSummary}</p>
                 </div>
 
-                {/* Flagged Clause Risks */}
-                {docResult.analysis.flaggedRisks.length > 0 ? (
+                {docResult.analysis.flaggedRisks.length > 0 && (
                   <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
-                    <div className="border-b border-slate-200 pb-3 mb-4">
-                      <h4 className="text-base font-bold text-slate-900">
-                        Identified Clause Risks &amp; Statutory Conflicts ({docResult.analysis.flaggedRisks.length})
-                      </h4>
-                      <p className="text-xs text-slate-500">
-                        These clauses may be one-sided, unenforcible, or contrary to Indian statutory protections.
-                      </p>
-                    </div>
+                    <h4 className="text-base font-bold text-slate-900 mb-4">
+                      Flagged Risks ({docResult.analysis.flaggedRisks.length})
+                    </h4>
                     <div className="space-y-4">
                       {docResult.analysis.flaggedRisks.map((risk, i) => (
-                        <div
-                          key={i}
-                          className={`p-4 rounded-lg border ${
-                            risk.severity === 'high'
-                              ? 'border-rose-200 bg-rose-50/50'
-                              : 'border-amber-200 bg-amber-50/50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            <span className="font-bold text-sm text-slate-900">
-                              {risk.category}
-                            </span>
-                            <span
-                              className={`text-2xs uppercase font-bold px-2 py-0.5 rounded ${
-                                risk.severity === 'high'
-                                  ? 'bg-rose-200 text-rose-900'
-                                  : 'bg-amber-200 text-amber-900'
-                              }`}
-                            >
-                              {risk.severity} risk
+                        <div key={i} className="p-4 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
+                          <div className="flex justify-between">
+                            <span className="font-bold text-sm text-slate-900">{risk.category}</span>
+                            <span className="text-2xs uppercase font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-800">
+                              {risk.severity}
                             </span>
                           </div>
-                          <div className="text-xs font-mono bg-white p-2.5 rounded border border-slate-200 text-slate-800 mb-2">
-                            &quot;{risk.clauseExcerpt}&quot;
-                          </div>
-                          <div className="text-xs text-slate-700 space-y-1">
-                            <p><strong>Statutory Analysis:</strong> {risk.statutoryIssue}</p>
-                            <p><strong>Plain Meaning:</strong> {risk.plainExplanation}</p>
-                            <p className="text-teal-800 font-semibold">
-                              <strong>Recommendation:</strong> {risk.recommendation}
-                            </p>
-                          </div>
+                          <p className="text-xs text-slate-700"><strong>Statute:</strong> {risk.statutoryIssue}</p>
+                          <p className="text-xs text-slate-700"><strong>Meaning:</strong> {risk.plainExplanation}</p>
+                          <p className="text-xs text-teal-800 font-semibold"><strong>Action:</strong> {risk.recommendation}</p>
                         </div>
                       ))}
                     </div>
                   </div>
-                ) : (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 text-emerald-900 text-sm font-medium">
-                    No critical non-compete overreaches or statutory gag clauses were detected in this excerpt.
-                  </div>
                 )}
 
-                {/* Key Obligations & Protections */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
-                    <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-                      <span className="text-teal-700 font-bold">[!]</span>
-                      <span>Key Obligations Imposed On You</span>
-                    </h4>
-                    <ul className="space-y-2 text-xs md:text-sm text-slate-700">
-                      {docResult.analysis.keyObligations.map((obl, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="text-teal-700 font-bold">-</span>
-                          <span>{obl}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
-                    <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-                      <span className="text-teal-700 font-bold">[OK]</span>
-                      <span>Statutory Protections Retained</span>
-                    </h4>
-                    <ul className="space-y-2 text-xs md:text-sm text-slate-700">
-                      {docResult.analysis.keyProtections.map((pro, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="text-teal-700 font-bold">-</span>
-                          <span>{pro}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Questions for Your Lawyer */}
                 <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
-                  <h4 className="text-base font-bold text-slate-900 mb-2">
-                    Checklist of Questions for Your Advocate
-                  </h4>
-                  <p className="text-xs text-slate-500 mb-4">
-                    Take these targeted questions to your legal consultation to protect your rights before signing.
-                  </p>
-                  <ol className="space-y-2.5 text-xs md:text-sm text-slate-800">
+                  <h4 className="text-base font-bold text-slate-900 mb-2">Questions for Your Advocate</h4>
+                  <ol className="space-y-2 text-xs md:text-sm text-slate-800">
                     {docResult.analysis.questionsForLawyer.map((q, i) => (
-                      <li key={i} className="flex items-start gap-3 p-2.5 rounded bg-slate-50 border border-slate-200">
-                        <span className="w-5 h-5 rounded-full bg-teal-100 text-teal-800 font-bold text-xs flex items-center justify-center flex-shrink-0">
-                          {i + 1}
-                        </span>
-                        <span className="leading-relaxed font-medium">{q}</span>
+                      <li key={i} className="p-2.5 rounded bg-slate-50 border border-slate-200">
+                        {i + 1}. {q}
                       </li>
                     ))}
                   </ol>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: CLAUSE COMPARATOR */}
+        {activeTab === 'compare' && (
+          <div className="space-y-8">
+            <section aria-labelledby="compare-heading" className="bg-white rounded-xl shadow-xs border border-slate-200 p-6 md:p-8">
+              <div className="border-b border-slate-200 pb-4 mb-6">
+                <h2 id="compare-heading" className="text-xl md:text-2xl font-bold text-slate-900">
+                  Side-by-Side Clause &amp; Contract Comparator
+                </h2>
+                <p className="text-sm text-slate-600 mt-1">
+                  Compare an original contract clause against a revised version or statutory standard to detect risk shifts, added liabilities, or removed rights.
+                </p>
+              </div>
+
+              {/* Sample comparison presets */}
+              <div className="mb-6">
+                <span className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  Sample comparison presets:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrigText('Employee agrees not to engage in competing business for 24 months post termination anywhere in India.');
+                      setRevText('Employee agrees to maintain confidentiality of proprietary trade secrets during and after employment.');
+                      setCompError(null);
+                    }}
+                    className="p-3 text-left rounded-lg border border-slate-200 hover:border-teal-600 hover:bg-teal-50/50 transition-all text-xs"
+                  >
+                    <div className="font-bold text-slate-900">1. Removal of Restrictive Non-Compete</div>
+                    <div className="text-slate-500 text-2xs">Original has 24-mo non-compete; Revised removes it.</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrigText('Employee shall follow internal dispute escalation before approaching HR.');
+                      setRevText('Employee shall not disclose any dispute to any external authority, police station, or court under any circumstances.');
+                      setCompError(null);
+                    }}
+                    className="p-3 text-left rounded-lg border border-slate-200 hover:border-teal-600 hover:bg-teal-50/50 transition-all text-xs"
+                  >
+                    <div className="font-bold text-slate-900">2. Introduction of Reporting Gag Clause</div>
+                    <div className="text-slate-500 text-2xs">Revised version introduces unlawful reporting gag.</div>
+                  </button>
+                </div>
+              </div>
+
+              <form onSubmit={handleCompareSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="origClause" className="block text-sm font-semibold text-slate-800 mb-2">
+                      Original Clause / Version A:
+                    </label>
+                    <textarea
+                      id="origClause"
+                      rows={6}
+                      maxLength={5000}
+                      value={origText}
+                      onChange={e => setOrigText(e.target.value)}
+                      placeholder="Paste Version A text..."
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono bg-white focus:ring-2 focus:ring-teal-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="revClause" className="block text-sm font-semibold text-slate-800 mb-2">
+                      Revised Clause / Version B:
+                    </label>
+                    <textarea
+                      id="revClause"
+                      rows={6}
+                      maxLength={5000}
+                      value={revText}
+                      onChange={e => setRevText(e.target.value)}
+                      placeholder="Paste Version B text..."
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono bg-white focus:ring-2 focus:ring-teal-600"
+                    />
+                  </div>
+                </div>
+
+                {compError && (
+                  <div role="alert" className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium">
+                    {compError}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="submit"
+                    disabled={isCompLoading || origText.length === 0 || revText.length === 0}
+                    className="px-6 py-2.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-semibold text-sm transition-colors shadow-xs focus:ring-2 focus:ring-teal-500 disabled:opacity-50"
+                  >
+                    {isCompLoading ? 'Comparing Clauses...' : 'Compare Clauses & Highlight Risk Delta'}
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            {compResult && (
+              <div id="comp-results-section" tabIndex={-1} className="space-y-6 focus:outline-none">
+                <div className="flex justify-between items-center bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+                  <div>
+                    <span
+                      className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                        compResult.comparison.riskDelta === 'improved'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : compResult.comparison.riskDelta === 'worsened'
+                          ? 'bg-rose-100 text-rose-800'
+                          : 'bg-slate-100 text-slate-800'
+                      }`}
+                    >
+                      Risk Delta: {compResult.comparison.riskDelta.toUpperCase()}
+                    </span>
+                    <h3 className="text-lg font-bold text-slate-900 mt-1">
+                      Textual Alignment: {compResult.comparison.similarityScore}%
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCompResult(null)}
+                    className="px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg"
+                  >
+                    &lt; Clear Comparison
+                  </button>
+                </div>
+
+                <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-6 shadow-xs">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-teal-900 mb-2">Comparison Overview</h4>
+                  <p className="text-slate-800 text-sm md:text-base leading-relaxed">{compResult.comparison.plainSummary}</p>
+                  <p className="text-xs font-semibold text-teal-800 mt-2">
+                    <strong>Recommended Action:</strong> {compResult.comparison.recommendedAction}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
+                  <h4 className="text-base font-bold text-slate-900 mb-4">Detailed Differences &amp; Legal Impacts</h4>
+                  <div className="space-y-4">
+                    {compResult.comparison.differences.map((diff, i) => (
+                      <div key={i} className="p-4 rounded-lg border border-slate-200 bg-slate-50 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-2xs uppercase font-bold px-2 py-0.5 rounded ${
+                              diff.type === 'removed'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : diff.type === 'added'
+                                ? 'bg-rose-100 text-rose-800'
+                                : 'bg-slate-200 text-slate-800'
+                            }`}
+                          >
+                            {diff.type}
+                          </span>
+                          <span className="font-bold text-sm text-slate-900">{diff.title}</span>
+                        </div>
+                        <p className="text-xs text-slate-700">{diff.description}</p>
+                        <p className="text-xs text-teal-800 font-semibold">{diff.legalImpact}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 4: DOCUMENT Q&A */}
+        {activeTab === 'qa' && (
+          <div className="space-y-8">
+            <section aria-labelledby="qa-heading" className="bg-white rounded-xl shadow-xs border border-slate-200 p-6 md:p-8">
+              <div className="border-b border-slate-200 pb-4 mb-6">
+                <h2 id="qa-heading" className="text-xl md:text-2xl font-bold text-slate-900">
+                  Interactive Legal Document Q&amp;A
+                </h2>
+                <p className="text-sm text-slate-600 mt-1">
+                  Ask specific questions about your agreement or policy to receive direct, plain-language answers cross-referenced with Indian law.
+                </p>
+              </div>
+
+              {/* Sample questions */}
+              <div className="mb-6">
+                <span className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  Common sample questions:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    'Can my employer enforce a 24-month non-compete if I quit?',
+                    'Can the company stop me from reporting harassment to the police?',
+                    'Can they deduct liquidated damages from my final settlement?'
+                  ].map((q, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        setQaQuestion(q);
+                        if (!qaDocText) {
+                          setQaDocText(SAMPLE_LEGAL_DOCUMENTS[1].content);
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-teal-50 hover:text-teal-800 border border-slate-200 text-xs text-slate-700 transition-colors"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <form onSubmit={handleQaSubmit} className="space-y-6">
+                <div>
+                  <label htmlFor="qaDoc" className="block text-sm font-semibold text-slate-800 mb-2">
+                    Legal Document Excerpt:
+                  </label>
+                  <textarea
+                    id="qaDoc"
+                    rows={5}
+                    maxLength={5000}
+                    value={qaDocText}
+                    onChange={e => setQaDocText(e.target.value)}
+                    placeholder="Paste the agreement or policy text..."
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono bg-white focus:ring-2 focus:ring-teal-600"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="qaQuestionInput" className="block text-sm font-semibold text-slate-800 mb-2">
+                    Your Question:
+                  </label>
+                  <input
+                    id="qaQuestionInput"
+                    type="text"
+                    maxLength={300}
+                    value={qaQuestion}
+                    onChange={e => setQaQuestion(e.target.value)}
+                    placeholder="e.g. Can my employer fire me under this clause if I lodge a complaint?"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-teal-600"
+                  />
+                </div>
+
+                {qaError && (
+                  <div role="alert" className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium">
+                    {qaError}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="submit"
+                    disabled={isQaLoading || qaDocText.length === 0 || qaQuestion.length === 0}
+                    className="px-6 py-2.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-semibold text-sm transition-colors shadow-xs focus:ring-2 focus:ring-teal-500 disabled:opacity-50"
+                  >
+                    {isQaLoading ? 'Analyzing Document...' : 'Ask Document Question'}
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            {qaResult && (
+              <div id="qa-results-section" tabIndex={-1} className="space-y-6 focus:outline-none">
+                <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-6 shadow-xs">
+                  <span className="text-xs font-bold uppercase tracking-wider text-teal-900">Direct Answer</span>
+                  <p className="text-slate-900 text-base font-semibold mt-1 leading-relaxed">
+                    {qaResult.qa.directAnswer}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-4">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                      Statutory Benchmark &amp; Precedents
+                    </h4>
+                    <p className="text-xs md:text-sm text-slate-800 leading-relaxed font-mono bg-slate-50 p-3 rounded border border-slate-200">
+                      {qaResult.qa.statutoryGrounding}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                      Relevant Clause Excerpt
+                    </h4>
+                    <p className="text-xs md:text-sm text-slate-700 italic">
+                      &quot;{qaResult.qa.relevantClauseExcerpt}&quot;
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-amber-50 border-l-4 border-amber-500 rounded-r text-xs text-amber-900">
+                    <strong>Cautionary Note:</strong> {qaResult.qa.cautionaryAdvice}
+                  </div>
                 </div>
               </div>
             )}

@@ -8,7 +8,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      include: ['lib/ruleEngine.ts', 'lib/documentScanner.ts'],
+      include: [
+        'lib/ruleEngine.ts',
+        'lib/documentScanner.ts',
+        'lib/documentComparator.ts',
+        'lib/documentQA.ts'
+      ],
       thresholds: {
         lines: 80,
         functions: 80,
