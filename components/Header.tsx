@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-export const Header: React.FC = () => {
+export const Header: React.FC = React.memo(() => {
   return (
     <header className="border-b border-slate-200 bg-white/95 backdrop-blur sticky top-0 z-30 shadow-xs">
       <div className="max-w-6xl mx-auto px-4 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -50,4 +50,6 @@ export const Header: React.FC = () => {
       </div>
     </header>
   );
-};
+});
+
+Header.displayName = 'Header';

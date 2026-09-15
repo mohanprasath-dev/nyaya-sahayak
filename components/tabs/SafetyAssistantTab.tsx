@@ -20,7 +20,7 @@ export interface SafetyAssistantTabProps {
   onCopyLetter: () => void;
 }
 
-export const SafetyAssistantTab: React.FC<SafetyAssistantTabProps> = ({
+export const SafetyAssistantTab: React.FC<SafetyAssistantTabProps> = React.memo(({
   selectedCategory,
   onSelectCategory,
   answers,
@@ -496,4 +496,6 @@ export const SafetyAssistantTab: React.FC<SafetyAssistantTabProps> = ({
       )}
     </div>
   );
-};
+});
+
+SafetyAssistantTab.displayName = 'SafetyAssistantTab';

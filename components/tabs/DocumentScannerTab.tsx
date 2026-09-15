@@ -15,7 +15,7 @@ export interface DocumentScannerTabProps {
   onReset: () => void;
 }
 
-export const DocumentScannerTab: React.FC<DocumentScannerTabProps> = ({
+export const DocumentScannerTab: React.FC<DocumentScannerTabProps> = React.memo(({
   docContent,
   onDocContentChange,
   onSelectPreset,
@@ -160,4 +160,6 @@ export const DocumentScannerTab: React.FC<DocumentScannerTabProps> = ({
       )}
     </div>
   );
-};
+});
+
+DocumentScannerTab.displayName = 'DocumentScannerTab';

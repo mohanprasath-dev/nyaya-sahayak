@@ -2,6 +2,10 @@ import type { NextConfig } from 'next';
 
 const securityHeaders = [
   {
+    key: 'Content-Security-Policy',
+    value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none';",
+  },
+  {
     key: 'X-DNS-Prefetch-Control',
     value: 'on',
   },
@@ -32,6 +36,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  compress: true,
+  reactStrictMode: true,
   async headers() {
     return [
       {

@@ -16,7 +16,7 @@ export interface DocumentComparatorTabProps {
   onReset: () => void;
 }
 
-export const DocumentComparatorTab: React.FC<DocumentComparatorTabProps> = ({
+export const DocumentComparatorTab: React.FC<DocumentComparatorTabProps> = React.memo(({
   origText,
   onOrigTextChange,
   revText,
@@ -191,4 +191,6 @@ export const DocumentComparatorTab: React.FC<DocumentComparatorTabProps> = ({
       )}
     </div>
   );
-};
+});
+
+DocumentComparatorTab.displayName = 'DocumentComparatorTab';

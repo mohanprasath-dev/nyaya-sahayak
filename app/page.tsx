@@ -354,7 +354,12 @@ export default function HomePage() {
         />
 
         {/* Tab 1: Guided Legal Safety Assistant */}
-        {activeTab === 'assistant' && (
+        <div
+          role="tabpanel"
+          id="tabpanel-assistant"
+          aria-labelledby="tab-assistant"
+          className={activeTab === 'assistant' ? 'block' : 'hidden'}
+        >
           <SafetyAssistantTab
             selectedCategory={selectedCategory}
             onSelectCategory={handleCategorySelect}
@@ -370,10 +375,15 @@ export default function HomePage() {
             onReset={() => { setResult(null); setFreeText(''); }}
             onCopyLetter={handleCopyToClipboard}
           />
-        )}
+        </div>
 
         {/* Tab 2: Document & Clause Scanner */}
-        {activeTab === 'docScanner' && (
+        <div
+          role="tabpanel"
+          id="tabpanel-docScanner"
+          aria-labelledby="tab-docScanner"
+          className={activeTab === 'docScanner' ? 'block' : 'hidden'}
+        >
           <DocumentScannerTab
             docContent={docContent}
             onDocContentChange={setDocContent}
@@ -384,10 +394,15 @@ export default function HomePage() {
             onSubmit={handleDocumentSubmit}
             onReset={() => setDocResult(null)}
           />
-        )}
+        </div>
 
         {/* Tab 3: Clause Comparator */}
-        {activeTab === 'compare' && (
+        <div
+          role="tabpanel"
+          id="tabpanel-compare"
+          aria-labelledby="tab-compare"
+          className={activeTab === 'compare' ? 'block' : 'hidden'}
+        >
           <DocumentComparatorTab
             origText={origText}
             onOrigTextChange={setOrigText}
@@ -400,10 +415,15 @@ export default function HomePage() {
             onSubmit={handleCompareSubmit}
             onReset={() => setCompResult(null)}
           />
-        )}
+        </div>
 
         {/* Tab 4: Document Q&A */}
-        {activeTab === 'qa' && (
+        <div
+          role="tabpanel"
+          id="tabpanel-qa"
+          aria-labelledby="tab-qa"
+          className={activeTab === 'qa' ? 'block' : 'hidden'}
+        >
           <DocumentQATab
             qaDocText={qaDocText}
             onQaDocTextChange={setQaDocText}
@@ -416,7 +436,7 @@ export default function HomePage() {
             onSubmit={handleQaSubmit}
             onReset={() => setQaResult(null)}
           />
-        )}
+        </div>
       </main>
 
       {/* 4. Footer with Statutory Registry and Citations */}

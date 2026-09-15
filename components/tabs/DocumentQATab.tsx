@@ -16,7 +16,7 @@ export interface DocumentQATabProps {
   onReset: () => void;
 }
 
-export const DocumentQATab: React.FC<DocumentQATabProps> = ({
+export const DocumentQATab: React.FC<DocumentQATabProps> = React.memo(({
   qaDocText,
   onQaDocTextChange,
   qaQuestion,
@@ -164,4 +164,6 @@ export const DocumentQATab: React.FC<DocumentQATabProps> = ({
       )}
     </div>
   );
-};
+});
+
+DocumentQATab.displayName = 'DocumentQATab';

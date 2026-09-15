@@ -8,7 +8,7 @@ export interface ProblemStatementBannerProps {
   onLaunchPreset: (target: 'simplify_contract' | 'compare_revisions' | 'ask_document' | 'navigate_remedies' | 'flag_posh') => void;
 }
 
-export const ProblemStatementBanner: React.FC<ProblemStatementBannerProps> = ({
+export const ProblemStatementBanner: React.FC<ProblemStatementBannerProps> = React.memo(({
   activeTab,
   onSelectTab,
   onLaunchPreset,
@@ -89,9 +89,14 @@ export const ProblemStatementBanner: React.FC<ProblemStatementBannerProps> = ({
         </div>
       </div>
 
-      <nav aria-label="System Navigation Tabs" className="mt-4 pt-3.5 border-t border-slate-200 flex flex-wrap gap-2">
+      <nav role="tablist" aria-label="System Navigation Tabs" className="mt-4 pt-3.5 border-t border-slate-200 flex flex-wrap gap-2">
         <button
           type="button"
+          role="tab"
+          id="tab-assistant"
+          aria-selected={activeTab === 'assistant'}
+          aria-controls="tabpanel-assistant"
+          tabIndex={activeTab === 'assistant' ? 0 : -1}
           onClick={() => onSelectTab('assistant')}
           className={`text-xs md:text-sm font-semibold px-3.5 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-teal-600 ${
             activeTab === 'assistant'
@@ -104,6 +109,11 @@ export const ProblemStatementBanner: React.FC<ProblemStatementBannerProps> = ({
 
         <button
           type="button"
+          role="tab"
+          id="tab-docScanner"
+          aria-selected={activeTab === 'docScanner'}
+          aria-controls="tabpanel-docScanner"
+          tabIndex={activeTab === 'docScanner' ? 0 : -1}
           onClick={() => onSelectTab('docScanner')}
           className={`text-xs md:text-sm font-semibold px-3.5 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-teal-600 ${
             activeTab === 'docScanner'
@@ -116,6 +126,11 @@ export const ProblemStatementBanner: React.FC<ProblemStatementBannerProps> = ({
 
         <button
           type="button"
+          role="tab"
+          id="tab-compare"
+          aria-selected={activeTab === 'compare'}
+          aria-controls="tabpanel-compare"
+          tabIndex={activeTab === 'compare' ? 0 : -1}
           onClick={() => onSelectTab('compare')}
           className={`text-xs md:text-sm font-semibold px-3.5 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-teal-600 ${
             activeTab === 'compare'
@@ -128,6 +143,11 @@ export const ProblemStatementBanner: React.FC<ProblemStatementBannerProps> = ({
 
         <button
           type="button"
+          role="tab"
+          id="tab-qa"
+          aria-selected={activeTab === 'qa'}
+          aria-controls="tabpanel-qa"
+          tabIndex={activeTab === 'qa' ? 0 : -1}
           onClick={() => onSelectTab('qa')}
           className={`text-xs md:text-sm font-semibold px-3.5 py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-teal-600 ${
             activeTab === 'qa'
@@ -140,4 +160,6 @@ export const ProblemStatementBanner: React.FC<ProblemStatementBannerProps> = ({
       </nav>
     </section>
   );
-};
+});
+
+ProblemStatementBanner.displayName = 'ProblemStatementBanner';

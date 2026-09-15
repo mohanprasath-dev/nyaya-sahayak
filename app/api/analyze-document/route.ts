@@ -48,17 +48,31 @@ export async function POST(req: NextRequest) {
     );
 
     if (timestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+      const retryAfter = Math.ceil((timestamps[0] + RATE_LIMIT_WINDOW_MS - now) / 1000);
       return NextResponse.json(
         {
           error: 'Too many document analysis requests. Please wait a minute before trying again.',
-          retryAfterSeconds: Math.ceil((timestamps[0] + RATE_LIMIT_WINDOW_MS - now) / 1000)
+          retryAfterSeconds: retryAfter
         },
-        { status: 429 }
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(retryAfter),
+            'X-RateLimit-Limit': String(MAX_REQUESTS_PER_WINDOW),
+            'X-RateLimit-Remaining': '0',
+            'Cache-Control': 'no-store, max-age=0'
+          }
+        }
       );
     }
 
     timestamps.push(now);
     docRateLimitMap.set(clientIp, timestamps);
+    const rateLimitHeaders = {
+      'X-RateLimit-Limit': String(MAX_REQUESTS_PER_WINDOW),
+      'X-RateLimit-Remaining': String(Math.max(0, MAX_REQUESTS_PER_WINDOW - timestamps.length)),
+      'Cache-Control': 'no-store, max-age=0'
+    };
 
     // 2. Request body size check
     const contentLength = req.headers.get('content-length');
@@ -167,6 +181,9 @@ STRICT GUIDELINES:
       success: true,
       analysis: finalAnalysis,
       disclaimer: 'This document analysis provides informational review against Indian statutory standards. It does not constitute formal legal advice or substitute for review by an advocate.'
+    }, {
+      status: 200,
+      headers: rateLimitHeaders
     });
   } catch {
     return NextResponse.json(

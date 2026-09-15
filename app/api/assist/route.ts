@@ -50,17 +50,31 @@ export async function POST(req: NextRequest) {
     );
 
     if (timestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+      const retryAfter = Math.ceil((timestamps[0] + RATE_LIMIT_WINDOW_MS - now) / 1000);
       return NextResponse.json(
         {
           error: 'Too many requests. Please wait a minute before trying again.',
-          retryAfterSeconds: Math.ceil((timestamps[0] + RATE_LIMIT_WINDOW_MS - now) / 1000)
+          retryAfterSeconds: retryAfter
         },
-        { status: 429 }
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(retryAfter),
+            'X-RateLimit-Limit': String(MAX_REQUESTS_PER_WINDOW),
+            'X-RateLimit-Remaining': '0',
+            'Cache-Control': 'no-store, max-age=0'
+          }
+        }
       );
     }
 
     timestamps.push(now);
     rateLimitMap.set(clientIp, timestamps);
+    const rateLimitHeaders = {
+      'X-RateLimit-Limit': String(MAX_REQUESTS_PER_WINDOW),
+      'X-RateLimit-Remaining': String(Math.max(0, MAX_REQUESTS_PER_WINDOW - timestamps.length)),
+      'Cache-Control': 'no-store, max-age=0'
+    };
 
     // 2. Request body size check
     const contentLength = req.headers.get('content-length');
@@ -235,6 +249,9 @@ ${b.closing}
       },
       disclaimer:
         'Nyaya Sahayak provides procedural information and draft templates based on Indian statutes. This is not formal legal advice. For representation, please consult a legal professional or the District Legal Services Authority (DLSA).'
+    }, {
+      status: 200,
+      headers: rateLimitHeaders
     });
   } catch {
     // Return sanitized generic error without leaking server stack trace

@@ -27,14 +27,17 @@ export async function POST(req: NextRequest) {
     );
 
     if (timestamps.length >= MAX_REQUESTS) {
+      const retryAfter = Math.ceil((timestamps[0] + RATE_LIMIT_WINDOW_MS - now) / 1000);
       return NextResponse.json(
         { error: 'Too many queries. Please wait a minute before asking more questions.' },
         {
           status: 429,
           headers: {
+            'Retry-After': String(retryAfter),
             'X-RateLimit-Limit': String(MAX_REQUESTS),
             'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': String(Math.ceil((timestamps[0] + RATE_LIMIT_WINDOW_MS - now) / 1000))
+            'X-RateLimit-Reset': String(retryAfter),
+            'Cache-Control': 'no-store, max-age=0'
           }
         }
       );
@@ -132,7 +135,8 @@ ${cleanQ}`;
         headers: {
           'X-RateLimit-Limit': String(MAX_REQUESTS),
           'X-RateLimit-Remaining': String(MAX_REQUESTS - timestamps.length),
-          'X-RateLimit-Reset': '60'
+          'X-RateLimit-Reset': '60',
+          'Cache-Control': 'no-store, max-age=0'
         }
       }
     );
